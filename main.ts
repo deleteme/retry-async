@@ -9,8 +9,6 @@ interface RetryOptions {
   timeout?: number;
 }
 
-const originalSetTimeout = setTimeout;
-
 function delay(ms: number) {
   return new Promise((resolve) => {
     setTimeout(() => {
@@ -27,13 +25,15 @@ export async function retry({
   decay = 1,
 }: RetryOptions) {
   let retries = 0;
-  while (retries <= maxRetries) {
+  const atLimit = () => {
+    return retries > maxRetries;
+  };
+  while (!atLimit()) {
     try {
-      console.log("calling operation");
       const value = await operation();
-      console.log("operation resolved, got value", value);
       return value;
     } catch (rejection) {
+      if (atLimit()) throw rejection;
       await delay(retryDelay);
       retries += 1;
     }
