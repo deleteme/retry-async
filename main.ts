@@ -2,7 +2,6 @@ type Operation = () => any;
 type AsyncOperation = () => Promise<any>;
 
 interface RetryOptions {
-  operation: AsyncOperation | Operation;
   maxRetries?: number;
   retryDelay?: number;
   decay?: number | DecayFunction;
@@ -38,17 +37,16 @@ function calculateDelayMs(retries: number, retryDelay: number, decay: RetryOptio
   return retryDelay;
 }
 
-// todo: abort
-export async function retry({
-  operation,
-  maxRetries = 3,
-  retryDelay = 1000,
-  decay = 0,
-}: RetryOptions) {
+// todo: abort, timeout
+export async function retry(operation: AsyncOperation | Operation, options?: RetryOptions) {
+  const maxRetries = options?.maxRetries ?? 3;
+  const retryDelay = options?.retryDelay ?? 1000;
+  const decay = options?.decay;
+
   let retries = 0;
-  const atLimit = () => {
-    return retries > maxRetries;
-  };
+
+  const atLimit = () => retries > maxRetries;
+
   while (!atLimit()) {
     try {
       const value = await operation();

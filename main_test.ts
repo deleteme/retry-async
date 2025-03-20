@@ -25,7 +25,7 @@ describe("retry() unhappy path", () => {
       yield Promise.resolve("success");
     }
     const succeedAfterOneFailure = spy(returnsNext(generateCalls()));
-    const retryPromise = retry({ operation: succeedAfterOneFailure });
+    const retryPromise = retry(succeedAfterOneFailure);
     assertSpyCalls(succeedAfterOneFailure, 1);
     await time.tickAsync(999); // 999ms later
     assertSpyCalls(succeedAfterOneFailure, 1);
@@ -45,7 +45,7 @@ describe("retry() unhappy path", () => {
       }
     }
     const alwaysFail = spy(returnsNext(generateCalls()));
-    const retryPromise = retry({ operation: alwaysFail, maxRetries: 2 });
+    const retryPromise = retry(alwaysFail, { maxRetries: 2 });
     assertSpyCalls(alwaysFail, 1);
     await time.tickAsync(999); // 999ms later
     assertSpyCalls(alwaysFail, 1);
@@ -72,7 +72,7 @@ describe("retry() unhappy path", () => {
       }
     }
     const alwaysFail = spy(returnsNext(generateCalls()));
-    const retryPromise = retry({ operation: alwaysFail, maxRetries: 3, decay: 2 });
+    const retryPromise = retry(alwaysFail, { maxRetries: 3, decay: 2 });
     assertSpyCalls(alwaysFail, 1);
 
     // expected delays: 1s, 2s, 4s
@@ -105,12 +105,12 @@ describe("retry() unhappy path", () => {
 describe("retry() happy path", () => {
   it("resolves when the operation resolves", async () => {
     expect.assertions(1);
-    const result = await retry({ operation: success });
+    const result = await retry(success);
     expect(result).toBe("success");
   });
   it("resolves when the operation returns synchronously", async () => {
     expect.assertions(1);
-    const result = await retry({ operation: successSync });
+    const result = await retry(successSync);
     expect(result).toBe("success");
   });
 });
