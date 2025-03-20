@@ -64,6 +64,42 @@ describe("retry() unhappy path", () => {
     expect(retryPromise).resolves.toBe("failure");
     assertSpyCalls(alwaysFail, 3);
   });
+  it('will call the operation at an decreasing frequency, up to max number of retries until it rejects', async () => {
+    using time = new FakeTime();
+    function* generateCalls() {
+      while (true) {
+        yield Promise.reject("failure");
+      }
+    }
+    const alwaysFail = spy(returnsNext(generateCalls()));
+    const retryPromise = retry({ operation: alwaysFail, maxRetries: 3, decay: 2 });
+    assertSpyCalls(alwaysFail, 1);
+
+    // expected delays: 1s, 2s, 4s
+
+    await time.tickAsync(999); // 999ms later
+    assertSpyCalls(alwaysFail, 1);
+
+    await time.tickAsync(1); // 1s later, 1st retry
+    assertSpyCalls(alwaysFail, 2);
+
+    await time.tickAsync(1999); // 1999ms later
+    assertSpyCalls(alwaysFail, 2);
+
+    await time.tickAsync(1); // 2s later, 2nd retry
+    assertSpyCalls(alwaysFail, 3);
+
+    await time.tickAsync(3999); // 3999ms later
+    assertSpyCalls(alwaysFail, 3);
+
+    await time.tickAsync(1); // 4s later, 3rd and final retry
+    assertSpyCalls(alwaysFail, 4);
+
+    await time.runAllAsync();
+
+    expect(retryPromise).resolves.toBe("failure");
+    assertSpyCalls(alwaysFail, 4);
+  });
 });
 
 describe("retry() happy path", () => {
