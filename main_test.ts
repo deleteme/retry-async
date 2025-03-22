@@ -64,7 +64,34 @@ describe("retry() unhappy path", () => {
     expect(retryPromise).resolves.toBe("failure");
     assertSpyCalls(alwaysFail, 3);
   });
-  it('will call the operation at an decreasing frequency, up to max number of retries until it rejects', async () => {
+  it('will call the operation every "retryDelay" ms, up to max number of retries until it rejects', async () => {
+    using time = new FakeTime();
+    function* generateCalls() {
+      while (true) {
+        yield Promise.reject("failure");
+      }
+    }
+    const alwaysFail = spy(returnsNext(generateCalls()));
+    const retryPromise = retry(alwaysFail, { maxRetries: 2, retryDelay: 2000 });
+    assertSpyCalls(alwaysFail, 1);
+    await time.tickAsync(1999); // 1999ms later
+    assertSpyCalls(alwaysFail, 1);
+
+    await time.tickAsync(1); // 1s later, 1st retry
+    assertSpyCalls(alwaysFail, 2);
+
+    await time.tickAsync(1999); // 1999ms later
+    assertSpyCalls(alwaysFail, 2);
+
+    await time.tickAsync(1); // 1s later, 2nd and final retry
+    assertSpyCalls(alwaysFail, 3);
+
+    await time.runAllAsync();
+
+    expect(retryPromise).resolves.toBe("failure");
+    assertSpyCalls(alwaysFail, 3);
+  });
+  it('will call the operation at an decreasing frequency (decay), up to max number of retries until it rejects', async () => {
     using time = new FakeTime();
     function* generateCalls() {
       while (true) {
