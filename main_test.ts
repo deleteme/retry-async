@@ -4,11 +4,12 @@ import { describe, it, beforeEach, afterEach } from "@std/testing/bdd";
 import {
   assertSpyCall,
   assertSpyCalls,
+  assertSpyCallArgs,
   returnsNext,
   spy,
 } from "@std/testing/mock";
 import { FakeTime } from "@std/testing/time";
-import { retry } from "./main.ts";
+import { retry, delay } from "./main.ts";
 
 const success = async () => "success";
 const successSync = () => "success";
@@ -16,6 +17,24 @@ const failure = async () => {
   throw "failure";
 };
 
+describe("delay()", () => {
+  it("resolves after the given time", async () => {
+    using time = new FakeTime();
+    const promise = delay(1000);
+    await time.tickAsync(999);
+    await time.tickAsync(1);
+    expect(promise).resolves.toBe(undefined);
+  });
+  it("rejects if the signal is aborted before the given time", async () => {
+    const controller = new AbortController();
+    function run() {
+      const promise = delay(1000, { abortSignal: controller.signal });
+      controller.abort();
+      return promise;
+    }
+    expect(run()).rejects.toBe('aborted');
+  });
+});
 
 describe("retry() unhappy path", () => {
   it('will call the operation again after 1s if it rejects', async () => {
@@ -129,6 +148,51 @@ describe("retry() unhappy path", () => {
   });
 });
 
+describe("retry() cancellation w/abort signal", () => {
+  it("should abort the operation", async () => {
+    expect.assertions(4);
+    const controller = new AbortController();
+
+    let succeeded = 0
+    const successSpy = () => succeeded += 1;
+    let innerAborted = 0
+    const innerAbortedSpy = () => {
+      innerAborted += 1;
+      console.log('innerAbortedSpy called.', innerAborted);
+    }
+    let outerAborted = 0
+    const outerAbortedSpy = (value: any) => {
+      outerAborted += 1;
+      console.log('outerAbortedSpy called.', outerAborted);
+      return value;
+    };
+    const takeAWhile = async (options?: {
+      abortSignal?: AbortSignal;
+    }) => {
+      console.log('takeAWhile called');
+      try {
+        await delay(1000, { abortSignal: options?.abortSignal });
+        successSpy();
+      } catch (error) {
+        console.log('takeAWhile error', error);
+        innerAbortedSpy();
+        throw error;
+      }
+    };
+    const promise = retry(takeAWhile, { abortSignal: controller.signal }).catch(outerAbortedSpy);
+    controller.abort();
+    await promise;
+    console.log('making assertions');
+    expect(succeeded).toBe(0);
+    expect(innerAborted).toBe(1);
+    expect(outerAborted).toBe(1);
+    // using resolve here to avoid uncaught rejected promises error
+    return expect(promise).resolves.toBe("aborted");
+  });
+  //it("should abort the pending retry if the signal is aborted", () => {
+  //});
+});
+
 describe("retry() happy path", () => {
   it("resolves when the operation resolves", async () => {
     expect.assertions(1);
@@ -139,5 +203,51 @@ describe("retry() happy path", () => {
     expect.assertions(1);
     const result = await retry(successSync);
     expect(result).toBe("success");
+  });
+});
+
+describe("retry() unhappy path", () => {
+  it('will call the operation every 1s, until it timeouts until it rejects', async () => {
+    using time = new FakeTime();
+    function* generateCalls() {
+      yield delay(250).then(failure);
+      yield delay(250).then(failure);
+      yield delay(250).then(failure);
+    }
+    const alwaysFail = spy(returnsNext(generateCalls()));
+    const handleFailure = spy((error: Error) => error);
+    //const handleFailure = fn(async (error: Error) => error) as (reason: any) => PromiseLike<never>;
+    const retryPromise = retry(alwaysFail, { maxRetries: 2, timeout: 600, retryDelay: 300 }).catch(handleFailure);
+
+    // we want to timeout before the 3rd call finishes
+    // call 1 .......... 250ms . retryDelay 1 .......... 550ms . call 2 .......... 800ms . retryDelay 2 .......... 1100ms . call 3 .......... 1350ms
+    // timeout ....................................................... 600ms . 
+
+
+    // call 1 starts
+    assertSpyCalls(alwaysFail, 1);
+    await time.tickAsync(250);
+    assertSpyCalls(alwaysFail, 1);
+    // call 1 finishes
+    await time.tickAsync(299);
+    // retry 1 finishes
+    assertSpyCalls(alwaysFail, 1);
+    // call 1 finishes
+
+    // call 2 starts
+    await time.tickAsync(1);
+    assertSpyCalls(alwaysFail, 2);
+    await time.tickAsync(50);
+    assertSpyCalls(alwaysFail, 2);
+    // timeout rejects
+
+    await time.runAllAsync();
+
+    assertSpyCalls(handleFailure, 1);
+    assertSpyCallArgs(handleFailure, 0, ["timeout after 600ms"]);
+    expect(retryPromise).resolves.toBe("timeout after 600ms");
+    assertSpyCalls(alwaysFail, 2);
+    await time.runAllAsync();
+    await time.runAllAsync();
   });
 });
