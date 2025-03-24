@@ -36,7 +36,7 @@ describe("delay()", () => {
     expect(run()).rejects.toThrow();
     expect(run()).rejects.toMatchObject({
       name: "AbortError",
-      message: "The operation was aborted.",
+      message: "The signal has been aborted",
     });
   });
   it("rejects if the signal is already aborted", async () => {
@@ -49,7 +49,7 @@ describe("delay()", () => {
     expect(run()).rejects.toThrow();
     expect(run()).rejects.toMatchObject({
       name: "AbortError",
-      message: "The operation was aborted.",
+      message: "The signal has been aborted",
     });
   });
 });
@@ -206,7 +206,7 @@ describe("retry() cancellation w/abort signal", () => {
     expect(promise).resolves.toThrow();
     expect(promise).resolves.toMatchObject({
       name: "AbortError",
-      message: "The operation was aborted.",
+      message: "The signal has been aborted",
     });
   });
   it("should abort the timeout option", async () => {
@@ -236,7 +236,7 @@ describe("retry() cancellation w/abort signal", () => {
     expect(promise).resolves.toThrow();
     expect(promise).resolves.toMatchObject({
       name: "AbortError",
-      message: "The operation was aborted.",
+      message: "The signal has been aborted",
     });
   });
   it("should abort the pending retry if the signal is aborted", async () => {
@@ -265,7 +265,7 @@ describe("retry() cancellation w/abort signal", () => {
     expect(promise).resolves.toThrow();
     expect(promise).resolves.toMatchObject({
       name: "AbortError",
-      message: "The operation was aborted.",
+      message: "The signal has been aborted",
     });
   });
 });

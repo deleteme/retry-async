@@ -24,14 +24,12 @@ interface DelayOptions {
   abortSignal?: AbortSignal;
 }
 
-export function delay(ms: number, options?: DelayOptions) {
+export function delay(ms: number, options?: DelayOptions): Promise<void> {
   return new Promise((resolve, reject) => {
-    const abort = () => {
-      reject(new DOMException("The operation was aborted.", "AbortError"));
-    };
     let timeout: ReturnType<typeof setTimeout>;
     if (options?.abortSignal?.aborted) {
-      abort();
+      // reason is a DOMException with name 'AbortError'
+      reject(options.abortSignal.reason);
       return;
     }
     timeout = setTimeout(() => {
@@ -40,10 +38,10 @@ export function delay(ms: number, options?: DelayOptions) {
         options.abortSignal.removeEventListener("abort", handleAbortSignal);
       }
     }, ms);
-    function handleAbortSignal() {
+    function handleAbortSignal(event: Event) {
       clearTimeout(timeout);
       options!.abortSignal!.removeEventListener("abort", handleAbortSignal);
-      abort();
+      reject((event.target as AbortSignal).reason);
     }
     options?.abortSignal?.addEventListener("abort", handleAbortSignal);
   });
@@ -66,7 +64,6 @@ function calculateDelayMs(
   return retryDelay;
 }
 
-// todo: abort, timeout
 async function innerRetry(operation: Operation, options?: RetryOptions) {
   const maxRetries = options?.maxRetries ?? 3;
   const retryDelay = options?.retryDelay ?? 1000;
@@ -100,6 +97,7 @@ function* generatePromises(
     yield delay(options.timeout, {
       abortSignal: options?.abortSignal,
     }).then(() => {
+      // Reproducing https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static
       throw new DOMException("The operation timed out.", "TimeoutError");
     });
   }
