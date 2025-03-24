@@ -28,32 +28,36 @@ export function delay(ms: number, options?: DelayOptions) {
   let timeout: ReturnType<typeof setTimeout>;
   return new Promise((resolve, reject) => {
     if (options?.abortSignal?.aborted) {
-      reject('aborted');
+      reject("aborted");
       return;
     }
     timeout = setTimeout(() => {
       resolve(undefined);
       if (options?.abortSignal) {
-        options.abortSignal.removeEventListener('abort', handleAbortSignal);
+        options.abortSignal.removeEventListener("abort", handleAbortSignal);
       }
-    }, ms)
+    }, ms);
     function handleAbortSignal() {
       clearTimeout(timeout);
-      options!.abortSignal!.removeEventListener('abort', handleAbortSignal);
-      reject('aborted');
+      options!.abortSignal!.removeEventListener("abort", handleAbortSignal);
+      reject("aborted");
     }
-    options?.abortSignal?.addEventListener('abort', handleAbortSignal);
+    options?.abortSignal?.addEventListener("abort", handleAbortSignal);
   });
 }
 
-function calculateDelayMs(retries: number, retryDelay: number, decay: RetryOptions['decay']) {
-  if (typeof decay === 'number') {
+function calculateDelayMs(
+  retries: number,
+  retryDelay: number,
+  decay: RetryOptions["decay"],
+) {
+  if (typeof decay === "number") {
     if (decay <= 1) {
       return retryDelay;
     }
     return defaultDecayFn(retries, retryDelay, decay);
   }
-  if (typeof decay === 'function') {
+  if (typeof decay === "function") {
     return decay(retries, retryDelay);
   }
   return retryDelay;
@@ -74,7 +78,7 @@ async function innerRetry(operation: Operation, options?: RetryOptions) {
       const value = await operation({ abortSignal: options?.abortSignal });
       return value;
     } catch (rejection) {
-      if (rejection === 'aborted') throw rejection;
+      if (rejection === "aborted") throw rejection;
       if (atLimit()) throw rejection;
       retries += 1;
       const delayMs = calculateDelayMs(retries, retryDelay, decay);
@@ -83,19 +87,24 @@ async function innerRetry(operation: Operation, options?: RetryOptions) {
   }
 }
 
-function* generatePromises(operation: Operation, options?: RetryOptions & { timeout?: number }) {
+function* generatePromises(
+  operation: Operation,
+  options?: RetryOptions & { timeout?: number },
+) {
   yield innerRetry(operation, options);
 
   if (options?.timeout) {
     yield delay(options.timeout, {
-      abortSignal: options?.abortSignal
+      abortSignal: options?.abortSignal,
     }).then(() => {
       throw `timeout after ${options.timeout}ms`;
-    })
+    });
   }
-
 }
 
-export function retry(operation: Operation, options?: RetryOptions & { timeout?: number }) {
+export function retry(
+  operation: Operation,
+  options?: RetryOptions & { timeout?: number },
+) {
   return Promise.race(generatePromises(operation, options));
 }

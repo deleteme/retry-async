@@ -1,15 +1,15 @@
 import { assertEquals } from "@std/assert";
 import { expect } from "@std/expect";
-import { describe, it, beforeEach, afterEach } from "@std/testing/bdd";
+import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
 import {
   assertSpyCall,
-  assertSpyCalls,
   assertSpyCallArgs,
+  assertSpyCalls,
   returnsNext,
   spy,
 } from "@std/testing/mock";
 import { FakeTime } from "@std/testing/time";
-import { retry, delay } from "./main.ts";
+import { delay, retry } from "./main.ts";
 
 const success = async () => "success";
 const successSync = () => "success";
@@ -32,7 +32,7 @@ describe("delay()", () => {
       controller.abort();
       return promise;
     }
-    expect(run()).rejects.toBe('aborted');
+    expect(run()).rejects.toBe("aborted");
   });
   it("rejects if the signal is already aborted", async () => {
     const controller = new AbortController();
@@ -40,12 +40,12 @@ describe("delay()", () => {
     function run() {
       return delay(1000, { abortSignal: controller.signal });
     }
-    expect(run()).rejects.toBe('aborted');
+    expect(run()).rejects.toBe("aborted");
   });
 });
 
 describe("retry() unhappy path", () => {
-  it('will call the operation again after 1s if it rejects', async () => {
+  it("will call the operation again after 1s if it rejects", async () => {
     using time = new FakeTime();
     function* generateCalls() {
       yield Promise.reject("failure");
@@ -64,7 +64,7 @@ describe("retry() unhappy path", () => {
     expect(result).toBe("success");
     assertSpyCalls(succeedAfterOneFailure, 2);
   });
-  it('will call the operation every 1s, up to max number of retries until it rejects', async () => {
+  it("will call the operation every 1s, up to max number of retries until it rejects", async () => {
     using time = new FakeTime();
     function* generateCalls() {
       while (true) {
@@ -118,7 +118,7 @@ describe("retry() unhappy path", () => {
     expect(retryPromise).resolves.toBe("failure");
     assertSpyCalls(alwaysFail, 3);
   });
-  it('will call the operation at an decreasing frequency (decay), up to max number of retries until it rejects', async () => {
+  it("will call the operation at an decreasing frequency (decay), up to max number of retries until it rejects", async () => {
     using time = new FakeTime();
     function* generateCalls() {
       while (true) {
@@ -162,36 +162,38 @@ describe("retry() cancellation w/abort signal", () => {
     expect.assertions(4);
     const controller = new AbortController();
 
-    let succeeded = 0
+    let succeeded = 0;
     const successSpy = () => succeeded += 1;
-    let innerAborted = 0
+    let innerAborted = 0;
     const innerAbortedSpy = () => {
       innerAborted += 1;
-      console.log('innerAbortedSpy called.', innerAborted);
-    }
-    let outerAborted = 0
+      console.log("innerAbortedSpy called.", innerAborted);
+    };
+    let outerAborted = 0;
     const outerAbortedSpy = (value: any) => {
       outerAborted += 1;
-      console.log('outerAbortedSpy called.', outerAborted);
+      console.log("outerAbortedSpy called.", outerAborted);
       return value;
     };
     const takeAWhile = async (options?: {
       abortSignal?: AbortSignal;
     }) => {
-      console.log('takeAWhile called');
+      console.log("takeAWhile called");
       try {
         await delay(1000, { abortSignal: options?.abortSignal });
         successSpy();
       } catch (error) {
-        console.log('takeAWhile error', error);
+        console.log("takeAWhile error", error);
         innerAbortedSpy();
         throw error;
       }
     };
-    const promise = retry(takeAWhile, { abortSignal: controller.signal }).catch(outerAbortedSpy);
+    const promise = retry(takeAWhile, { abortSignal: controller.signal }).catch(
+      outerAbortedSpy,
+    );
     controller.abort();
     await promise;
-    console.log('making assertions');
+    console.log("making assertions");
     expect(succeeded).toBe(0);
     expect(innerAborted).toBe(1);
     expect(outerAborted).toBe(1);
@@ -243,7 +245,7 @@ describe("retry() happy path", () => {
 });
 
 describe("retry() unhappy path", () => {
-  it('will call the operation every 1s, until it timeouts until it rejects', async () => {
+  it("will call the operation every 1s, until it timeouts until it rejects", async () => {
     using time = new FakeTime();
     function* generateCalls() {
       yield delay(250).then(failure);
@@ -253,12 +255,15 @@ describe("retry() unhappy path", () => {
     const alwaysFail = spy(returnsNext(generateCalls()));
     const handleFailure = spy((error: Error) => error);
     //const handleFailure = fn(async (error: Error) => error) as (reason: any) => PromiseLike<never>;
-    const retryPromise = retry(alwaysFail, { maxRetries: 2, timeout: 600, retryDelay: 300 }).catch(handleFailure);
+    const retryPromise = retry(alwaysFail, {
+      maxRetries: 2,
+      timeout: 600,
+      retryDelay: 300,
+    }).catch(handleFailure);
 
     // we want to timeout before the 3rd call finishes
     // call 1 .......... 250ms . retryDelay 1 .......... 550ms . call 2 .......... 800ms . retryDelay 2 .......... 1100ms . call 3 .......... 1350ms
-    // timeout ....................................................... 600ms . 
-
+    // timeout ....................................................... 600ms .
 
     // call 1 starts
     assertSpyCalls(alwaysFail, 1);
