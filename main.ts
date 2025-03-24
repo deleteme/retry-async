@@ -26,9 +26,12 @@ interface DelayOptions {
 
 export function delay(ms: number, options?: DelayOptions) {
   return new Promise((resolve, reject) => {
+    const abort = () => {
+      reject(new DOMException("The operation was aborted.", "AbortError"));
+    };
     let timeout: ReturnType<typeof setTimeout>;
     if (options?.abortSignal?.aborted) {
-      reject("aborted");
+      abort();
       return;
     }
     timeout = setTimeout(() => {
@@ -40,7 +43,7 @@ export function delay(ms: number, options?: DelayOptions) {
     function handleAbortSignal() {
       clearTimeout(timeout);
       options!.abortSignal!.removeEventListener("abort", handleAbortSignal);
-      reject("aborted");
+      abort();
     }
     options?.abortSignal?.addEventListener("abort", handleAbortSignal);
   });
@@ -97,7 +100,7 @@ function* generatePromises(
     yield delay(options.timeout, {
       abortSignal: options?.abortSignal,
     }).then(() => {
-      throw `timeout after ${options.timeout}ms`;
+      throw new DOMException("The operation timed out.", "TimeoutError");
     });
   }
 }

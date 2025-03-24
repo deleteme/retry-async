@@ -32,7 +32,12 @@ describe("delay()", () => {
       controller.abort();
       return promise;
     }
-    expect(run()).rejects.toBe("aborted");
+    expect(run()).rejects.toBeInstanceOf(DOMException);
+    expect(run()).rejects.toThrow();
+    expect(run()).rejects.toMatchObject({
+      name: "AbortError",
+      message: "The operation was aborted.",
+    });
   });
   it("rejects if the signal is already aborted", async () => {
     const controller = new AbortController();
@@ -40,7 +45,12 @@ describe("delay()", () => {
     function run() {
       return delay(1000, { abortSignal: controller.signal });
     }
-    expect(run()).rejects.toBe("aborted");
+    expect(run()).rejects.toBeInstanceOf(DOMException);
+    expect(run()).rejects.toThrow();
+    expect(run()).rejects.toMatchObject({
+      name: "AbortError",
+      message: "The operation was aborted.",
+    });
   });
 });
 
@@ -156,10 +166,9 @@ describe("retry() unhappy path", () => {
   });
 });
 
-// TODO: send abort signal to all delay calls
 describe("retry() cancellation w/abort signal", () => {
   it("should abort the operation", async () => {
-    expect.assertions(4);
+    expect.assertions(6);
     const controller = new AbortController();
 
     let succeeded = 0;
@@ -193,7 +202,12 @@ describe("retry() cancellation w/abort signal", () => {
     expect(innerAborted).toBe(1);
     expect(outerAborted).toBe(1);
     // using resolve here to avoid uncaught rejected promises error
-    return expect(promise).resolves.toBe("aborted");
+    expect(promise).resolves.toBeInstanceOf(DOMException);
+    expect(promise).resolves.toThrow();
+    expect(promise).resolves.toMatchObject({
+      name: "AbortError",
+      message: "The operation was aborted.",
+    });
   });
   it("should abort the timeout option", async () => {
     // assert the that the delay from the options.timeout is aborted
@@ -217,10 +231,13 @@ describe("retry() cancellation w/abort signal", () => {
       args: [{ abortSignal: controller.signal }],
     });
     assertSpyCalls(outerAbortedSpy, 1);
-    assertSpyCall(outerAbortedSpy, 0, {
-      args: ["aborted"],
+    // using resolve here to avoid uncaught rejected promises error
+    expect(promise).resolves.toBeInstanceOf(DOMException);
+    expect(promise).resolves.toThrow();
+    expect(promise).resolves.toMatchObject({
+      name: "AbortError",
+      message: "The operation was aborted.",
     });
-    expect(promise).resolves.toBe("aborted");
   });
   it("should abort the pending retry if the signal is aborted", async () => {
     using time = new FakeTime();
@@ -243,10 +260,13 @@ describe("retry() cancellation w/abort signal", () => {
       args: [{ abortSignal: controller.signal }],
     });
     assertSpyCalls(outerAbortedSpy, 1);
-    assertSpyCall(outerAbortedSpy, 0, {
-      args: ["aborted"],
+    // using resolve here to avoid uncaught rejected promises error
+    expect(promise).resolves.toBeInstanceOf(DOMException);
+    expect(promise).resolves.toThrow();
+    expect(promise).resolves.toMatchObject({
+      name: "AbortError",
+      message: "The operation was aborted.",
     });
-    expect(promise).resolves.toBe("aborted");
   });
 });
 
@@ -264,7 +284,7 @@ describe("retry() happy path", () => {
 });
 
 describe("retry() unhappy path", () => {
-  it("will call the operation every 1s, until it timeouts until it rejects", async () => {
+  it("will call the operation every 1s, until it timeouts and rejects", async () => {
     using time = new FakeTime();
     function* generateCalls() {
       yield delay(250).then(failure);
@@ -304,8 +324,13 @@ describe("retry() unhappy path", () => {
     await time.runAllAsync();
 
     assertSpyCalls(handleFailure, 1);
-    assertSpyCallArgs(handleFailure, 0, ["timeout after 600ms"]);
-    expect(retryPromise).resolves.toBe("timeout after 600ms");
+    // using resolve here to avoid uncaught rejected promises error
+    expect(retryPromise).resolves.toBeInstanceOf(DOMException);
+    expect(retryPromise).resolves.toThrow();
+    expect(retryPromise).resolves.toMatchObject({
+      name: "TimeoutError",
+      message: "The operation timed out.",
+    });
     assertSpyCalls(alwaysFail, 2);
     await time.runAllAsync();
     await time.runAllAsync();
