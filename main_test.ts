@@ -167,23 +167,19 @@ describe("retry() cancellation w/abort signal", () => {
     let innerAborted = 0;
     const innerAbortedSpy = () => {
       innerAborted += 1;
-      console.log("innerAbortedSpy called.", innerAborted);
     };
     let outerAborted = 0;
     const outerAbortedSpy = (value: any) => {
       outerAborted += 1;
-      console.log("outerAbortedSpy called.", outerAborted);
       return value;
     };
     const takeAWhile = async (options?: {
       abortSignal?: AbortSignal;
     }) => {
-      console.log("takeAWhile called");
       try {
         await delay(1000, { abortSignal: options?.abortSignal });
         successSpy();
       } catch (error) {
-        console.log("takeAWhile error", error);
         innerAbortedSpy();
         throw error;
       }
@@ -193,7 +189,6 @@ describe("retry() cancellation w/abort signal", () => {
     );
     controller.abort();
     await promise;
-    console.log("making assertions");
     expect(succeeded).toBe(0);
     expect(innerAborted).toBe(1);
     expect(outerAborted).toBe(1);
