@@ -34,6 +34,14 @@ describe("delay()", () => {
     }
     expect(run()).rejects.toBe('aborted');
   });
+  it("rejects if the signal is already aborted", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    function run() {
+      return delay(1000, { abortSignal: controller.signal });
+    }
+    expect(run()).rejects.toBe('aborted');
+  });
 });
 
 describe("retry() unhappy path", () => {

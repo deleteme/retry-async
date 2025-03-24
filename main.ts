@@ -27,6 +27,10 @@ interface DelayOptions {
 export function delay(ms: number, options?: DelayOptions) {
   let timeout: ReturnType<typeof setTimeout>;
   return new Promise((resolve, reject) => {
+    if (options?.abortSignal?.aborted) {
+      reject('aborted');
+      return;
+    }
     timeout = setTimeout(() => {
       resolve(undefined);
       if (options?.abortSignal) {
