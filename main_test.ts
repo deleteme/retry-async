@@ -227,8 +227,32 @@ describe("retry() cancellation w/abort signal", () => {
     });
     expect(promise).resolves.toBe("aborted");
   });
-  //it("should abort the pending retry if the signal is aborted", () => {
-  //});
+  it("should abort the pending retry if the signal is aborted", async () => {
+    using time = new FakeTime();
+    const outerAbortedSpy = spy((value: string) => value);
+    const controller = new AbortController();
+    const never = spy((options?: {
+      abortSignal?: AbortSignal;
+    }) => {
+      return Promise.reject("oh no");
+    });
+    const promise = retry(never, {
+      retryDelay: 10000,
+      abortSignal: controller.signal,
+    }).catch(outerAbortedSpy);
+    await time.tickAsync(5);
+    controller.abort();
+    await time.tickAsync(1050);
+    assertSpyCalls(never, 1);
+    assertSpyCall(never, 0, {
+      args: [{ abortSignal: controller.signal }],
+    });
+    assertSpyCalls(outerAbortedSpy, 1);
+    assertSpyCall(outerAbortedSpy, 0, {
+      args: ["aborted"],
+    });
+    expect(promise).resolves.toBe("aborted");
+  });
 });
 
 describe("retry() happy path", () => {

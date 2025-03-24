@@ -82,7 +82,7 @@ async function innerRetry(operation: Operation, options?: RetryOptions) {
       if (atLimit()) throw rejection;
       retries += 1;
       const delayMs = calculateDelayMs(retries, retryDelay, decay);
-      await delay(delayMs);
+      await delay(delayMs, { abortSignal: options?.abortSignal });
     }
   }
 }
