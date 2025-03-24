@@ -10,6 +10,10 @@ interface RetryOptions {
   retryDelay?: number;
   decay?: number | DecayFunction;
   abortSignal?: AbortSignal;
+  onRetry?: (onRetryArg : {
+    retries: number;
+    rejection: any;
+  }) => Promise<void> | void;
 }
 
 function defaultDecayFn(retries: number, retryDelay: number, decay: number) {
@@ -78,11 +82,14 @@ async function innerRetry(operation: Operation, options?: RetryOptions) {
       const value = await operation({ abortSignal: options?.abortSignal });
       return value;
     } catch (rejection) {
-      if (rejection === "aborted") throw rejection;
+      if (options?.abortSignal?.aborted && options.abortSignal.reason === rejection) throw rejection;
       if (atLimit()) throw rejection;
       retries += 1;
       const delayMs = calculateDelayMs(retries, retryDelay, decay);
       await delay(delayMs, { abortSignal: options?.abortSignal });
+      if (options?.onRetry) {
+        await options.onRetry({ retries, rejection });
+      }
     }
   }
 }

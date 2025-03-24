@@ -74,6 +74,31 @@ describe("retry() unhappy path", () => {
     expect(result).toBe("success");
     assertSpyCalls(succeedAfterOneFailure, 2);
   });
+  it("will call and await an onRetry callback option", async () => {
+    using time = new FakeTime();
+    function* generateCalls() {
+      yield Promise.reject("failure");
+      yield Promise.resolve("success");
+    }
+    const onRetry = spy(() => Promise.resolve());
+    const succeedAfterOneFailure = spy(returnsNext(generateCalls()));
+    const retryPromise = retry(succeedAfterOneFailure, {
+      onRetry,
+    });
+    assertSpyCalls(succeedAfterOneFailure, 1);
+    await time.tickAsync(999); // 999ms later
+    assertSpyCalls(succeedAfterOneFailure, 1);
+    assertSpyCalls(onRetry, 0);
+
+    await time.tickAsync(1); // 1s later
+    assertSpyCalls(onRetry, 1);
+    await time.tickAsync(0); // flush onRetry
+    assertSpyCalls(succeedAfterOneFailure, 2);
+
+    const result = await retryPromise;
+    expect(result).toBe("success");
+    assertSpyCalls(succeedAfterOneFailure, 2);
+  });
   it("will call the operation every 1s, up to max number of retries until it rejects", async () => {
     using time = new FakeTime();
     function* generateCalls() {
@@ -209,6 +234,9 @@ describe("retry() cancellation w/abort signal", () => {
       message: "The signal has been aborted",
     });
   });
+  // TODO
+  //it("should not retry an operation if the signal is aborted", async () => {
+  //});
   it("should abort the timeout option", async () => {
     // assert the that the delay from the options.timeout is aborted
     using time = new FakeTime();
