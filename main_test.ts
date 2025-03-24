@@ -148,6 +148,7 @@ describe("retry() unhappy path", () => {
   });
 });
 
+// TODO: send abort signal to all delay calls
 describe("retry() cancellation w/abort signal", () => {
   it("should abort the operation", async () => {
     expect.assertions(4);
@@ -188,6 +189,33 @@ describe("retry() cancellation w/abort signal", () => {
     expect(outerAborted).toBe(1);
     // using resolve here to avoid uncaught rejected promises error
     return expect(promise).resolves.toBe("aborted");
+  });
+  it("should abort the timeout option", async () => {
+    // assert the that the delay from the options.timeout is aborted
+    using time = new FakeTime();
+    const outerAbortedSpy = spy((value: string) => value);
+    const controller = new AbortController();
+    const indefinitely = spy((options?: {
+      abortSignal?: AbortSignal;
+    }) => {
+      return new Promise(() => {});
+    });
+    const promise = retry(indefinitely, {
+      abortSignal: controller.signal,
+      timeout: 10,
+    }).catch(outerAbortedSpy);
+    await time.tickAsync(5);
+    controller.abort();
+    await time.tickAsync(1050);
+    assertSpyCalls(indefinitely, 1);
+    assertSpyCall(indefinitely, 0, {
+      args: [{ abortSignal: controller.signal }],
+    });
+    assertSpyCalls(outerAbortedSpy, 1);
+    assertSpyCall(outerAbortedSpy, 0, {
+      args: ["aborted"],
+    });
+    expect(promise).resolves.toBe("aborted");
   });
   //it("should abort the pending retry if the signal is aborted", () => {
   //});

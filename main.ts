@@ -67,7 +67,7 @@ async function innerRetry(operation: Operation, options?: RetryOptions) {
 
   while (!atLimit()) {
     try {
-      const value = await operation(options);
+      const value = await operation({ abortSignal: options?.abortSignal });
       return value;
     } catch (rejection) {
       if (rejection === 'aborted') throw rejection;
@@ -83,7 +83,9 @@ function* generatePromises(operation: Operation, options?: RetryOptions & { time
   yield innerRetry(operation, options);
 
   if (options?.timeout) {
-    yield delay(options.timeout).then(() => {
+    yield delay(options.timeout, {
+      abortSignal: options?.abortSignal
+    }).then(() => {
       throw `timeout after ${options.timeout}ms`;
     })
   }
