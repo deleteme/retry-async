@@ -81,7 +81,7 @@ async function fetchData() {
 ##### Custom Retry Options
 
 ```typescript
-import { retry } from "./main.ts";
+import { retry } from "@deleteme/retry-async";
 
 async function fetchData() {
   const result = await retry(async () => {
@@ -103,7 +103,7 @@ async function fetchData() {
 ##### Aborting the Retry Process
 
 ```typescript
-import { retry } from "./main.ts";
+import { retry } from "@deleteme/retry-async";
 
 const controller = new AbortController();
 
@@ -111,7 +111,11 @@ setTimeout(() => controller.abort(), 5000); // Abort after 5 seconds
 
 try {
   const result = await retry(async () => {
-    const response = await fetch("https://example.com/api");
+    const response = await fetch("https://example.com/api", {
+      // The abort signal is also passed to this operation function.
+      // Ensure the signal is sent to fetch so that it may also abort the request.
+      signal: controller.signal,
+    });
     if (!response.ok) throw new Error("Request failed");
     return response.json();
   }, {
@@ -126,7 +130,7 @@ try {
 ##### Using a Timeout
 
 ```typescript
-import { retry } from "./main.ts";
+import { retry } from "@deleteme/retry-async";
 
 try {
   const result = await retry(async () => {
