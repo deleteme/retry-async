@@ -17,40 +17,16 @@ const failure = async () => {
   throw "failure";
 };
 
-describe("delay()", () => {
-  it("resolves after the given time", async () => {
-    using time = new FakeTime();
-    const promise = delay(1000);
-    await time.tickAsync(999);
-    await time.tickAsync(1);
-    expect(promise).resolves.toBe(undefined);
+describe("retry() happy path", () => {
+  it("resolves when the operation resolves", async () => {
+    expect.assertions(1);
+    const result = await retry(success);
+    expect(result).toBe("success");
   });
-  it("rejects if the signal is aborted before the given time", async () => {
-    const controller = new AbortController();
-    function run() {
-      const promise = delay(1000, { abortSignal: controller.signal });
-      controller.abort();
-      return promise;
-    }
-    expect(run()).rejects.toBeInstanceOf(DOMException);
-    expect(run()).rejects.toThrow();
-    expect(run()).rejects.toMatchObject({
-      name: "AbortError",
-      message: "The signal has been aborted",
-    });
-  });
-  it("rejects if the signal is already aborted", async () => {
-    const controller = new AbortController();
-    controller.abort();
-    function run() {
-      return delay(1000, { abortSignal: controller.signal });
-    }
-    expect(run()).rejects.toBeInstanceOf(DOMException);
-    expect(run()).rejects.toThrow();
-    expect(run()).rejects.toMatchObject({
-      name: "AbortError",
-      message: "The signal has been aborted",
-    });
+  it("resolves when the operation returns synchronously", async () => {
+    expect.assertions(1);
+    const result = await retry(successSync);
+    expect(result).toBe("success");
   });
 });
 
@@ -234,9 +210,47 @@ describe("retry() cancellation w/abort signal", () => {
       message: "The signal has been aborted",
     });
   });
-  // TODO
-  //it("should not retry an operation if the signal is aborted", async () => {
-  //});
+  it("should not retry an operation if the signal is aborted", async () => {
+    using time = new FakeTime();
+    const outerAbortedSpy = spy((value: string) => value);
+    const setTimeoutSpy = spy(globalThis, "setTimeout");
+    const controller = new AbortController();
+    const rejectAsync = spy((options?: {
+      abortSignal?: AbortSignal;
+    }) => {
+      return new Promise((_resolve, reject) => {
+        setTimeout(() => {
+          reject(undefined);
+        }, 10);
+      });
+    });
+    const promise = retry(rejectAsync, {
+      abortSignal: controller.signal,
+    }).catch(outerAbortedSpy);
+    assertSpyCalls(setTimeoutSpy, 1);
+    await time.tickAsync(5);
+    // abort while the operation is pending
+    controller.abort();
+    // The operation isn't handling the abortSignal
+    await time.tickAsync(6);
+    // the operation should be finished by now
+    assertSpyCalls(rejectAsync, 1);
+    assertSpyCall(rejectAsync, 0, {
+      args: [{ abortSignal: controller.signal }],
+    });
+    await time.tickAsync(0);
+    assertSpyCalls(setTimeoutSpy, 1);
+    assertSpyCalls(outerAbortedSpy, 1);
+    assertSpyCalls(rejectAsync, 1);
+    assertSpyCalls(setTimeoutSpy, 1);
+    // using resolve here to avoid uncaught rejected promises error
+    expect(promise).resolves.toBeInstanceOf(DOMException);
+    expect(promise).resolves.toThrow();
+    expect(promise).resolves.toMatchObject({
+      name: "AbortError",
+      message: "The signal has been aborted",
+    });
+  });
   it("should abort the timeout option", async () => {
     // assert the that the delay from the options.timeout is aborted
     using time = new FakeTime();
@@ -298,20 +312,7 @@ describe("retry() cancellation w/abort signal", () => {
   });
 });
 
-describe("retry() happy path", () => {
-  it("resolves when the operation resolves", async () => {
-    expect.assertions(1);
-    const result = await retry(success);
-    expect(result).toBe("success");
-  });
-  it("resolves when the operation returns synchronously", async () => {
-    expect.assertions(1);
-    const result = await retry(successSync);
-    expect(result).toBe("success");
-  });
-});
-
-describe("retry() unhappy path", () => {
+describe("retry() unhappy path w/timeout option", () => {
   it("will call the operation every 1s, until it timeouts and rejects", async () => {
     using time = new FakeTime();
     function* generateCalls() {
@@ -362,5 +363,42 @@ describe("retry() unhappy path", () => {
     assertSpyCalls(alwaysFail, 2);
     await time.runAllAsync();
     await time.runAllAsync();
+  });
+});
+
+describe("delay()", () => {
+  it("resolves after the given time", async () => {
+    using time = new FakeTime();
+    const promise = delay(1000);
+    await time.tickAsync(999);
+    await time.tickAsync(1);
+    expect(promise).resolves.toBe(undefined);
+  });
+  it("rejects if the signal is aborted before the given time", async () => {
+    const controller = new AbortController();
+    function run() {
+      const promise = delay(1000, { abortSignal: controller.signal });
+      controller.abort();
+      return promise;
+    }
+    expect(run()).rejects.toBeInstanceOf(DOMException);
+    expect(run()).rejects.toThrow();
+    expect(run()).rejects.toMatchObject({
+      name: "AbortError",
+      message: "The signal has been aborted",
+    });
+  });
+  it("rejects if the signal is already aborted", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    function run() {
+      return delay(1000, { abortSignal: controller.signal });
+    }
+    expect(run()).rejects.toBeInstanceOf(DOMException);
+    expect(run()).rejects.toThrow();
+    expect(run()).rejects.toMatchObject({
+      name: "AbortError",
+      message: "The signal has been aborted",
+    });
   });
 });
