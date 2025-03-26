@@ -7,7 +7,7 @@ A utility for retrying asynchronous or synchronous operations with customizable 
 Add this module to your Deno project by importing it:
 
 ```typescript
-import { retry } from "./main.ts";
+import { retry } from "@deleteme/retry-async";
 ```
 
 ## API
@@ -66,7 +66,7 @@ A `Promise` that resolves with the result of the operation or rejects with the l
 ##### Basic Usage
 
 ```typescript
-import { retry } from "./main.ts";
+import { retry } from "@deleteme/retry-async";
 
 async function fetchData() {
   const result = await retry(async () => {
