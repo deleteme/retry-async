@@ -110,9 +110,9 @@ function* generatePromises(
   }
 }
 
-export function retry(
+export function retry<T>(
   operation: Operation,
   options?: RetryOptions & { timeout?: number },
-) {
+): Promise<T> {
   return Promise.race(generatePromises(operation, options));
 }
