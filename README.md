@@ -41,7 +41,7 @@ function retry<T>(
     retryDelay?: number; // Delay between retries in milliseconds (default: 1000)
     decay?: number | DecayFunction; // Exponential backoff factor or custom decay function
     abortSignal?: AbortSignal; // Signal to cancel the retry process
-    onRetry?: (onRetryArg: { retries: number; rejection: any }) => Promise<void> | void; // Callback invoked after each retry
+    onBeforeRetry?: (onBeforeRetryArg: { retries: number; rejection: any }) => Promise<void> | void; // Callback invoked after each retry
     timeout?: number; // Maximum time in milliseconds before the operation times out
   }
   ```
@@ -59,7 +59,7 @@ A `Promise` that resolves with the result of the operation or rejects with the l
    - If it's a function, it calculates the delay based on the number of retries and the initial delay.
 4. If `abortSignal` is provided and aborted, the retry process is canceled immediately.
 5. If `timeout` is provided, the retry process will reject with a `TimeoutError` if the total time exceeds the specified duration.
-6. The `onRetry` callback is invoked after each failed attempt, providing details about the retry.
+6. The `onBeforeRetry` callback is invoked after each failed attempt, providing details about the retry.
 
 #### Examples
 
@@ -92,7 +92,7 @@ async function fetchData() {
     maxRetries: 5,
     retryDelay: 2000,
     decay: 2, // Exponential backoff
-    onRetry: ({ retries, rejection }) => {
+    onBeforeRetry: ({ retries, rejection }) => {
       console.log(`Retry #${retries} failed:`, rejection);
     },
   });
