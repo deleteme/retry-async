@@ -6,14 +6,12 @@ type AsyncOperation = (options?: OperationOptions) => Promise<any>;
 type Operation = SyncOperation | AsyncOperation;
 
 interface RetryOptions {
-  maxRetries?: number;
-  retryDelay?: number;
-  decay?: number | DecayFunction;
-  abortSignal?: AbortSignal;
-  onBeforeRetry?: (onBeforeRetryArg: {
-    retries: number;
-    rejection: any;
-  }) => Promise<void> | void;
+  maxRetries?: number; // Maximum number of retries (default: 3)
+  retryDelay?: number; // Delay between retries in milliseconds (default: 1000)
+  decay?: number | DecayFunction; // Exponential backoff factor or custom decay function
+  abortSignal?: AbortSignal; // Signal to cancel the retry process
+  onBeforeRetry?: (onBeforeRetryArg: { retries: number; rejection: any }) => Promise<void> | void; // Callback invoked after each retry
+  timeout?: number; // Maximum time in milliseconds before the operation times out
 }
 
 function defaultDecayFn(retries: number, retryDelay: number, decay: number) {
