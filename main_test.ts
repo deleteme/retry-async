@@ -32,6 +32,7 @@ describe("retry() happy path", () => {
 
 describe("retry() unhappy path", () => {
   it("will call the operation again after 1s if it rejects", async () => {
+    expect.assertions(1);
     using time = new FakeTime();
     function* generateCalls() {
       yield Promise.reject("failure");
@@ -46,9 +47,32 @@ describe("retry() unhappy path", () => {
     await time.tickAsync(1); // 1s later
     assertSpyCalls(succeedAfterOneFailure, 2);
 
-    const result = await retryPromise;
-    expect(result).toBe("success");
+    try {
+      const result = await retryPromise;
+      expect(result).toBe("success");
+    } catch (error) {
+      throw 'this should not happen';
+    }
     assertSpyCalls(succeedAfterOneFailure, 2);
+  });
+  it("will not call the operation again if maxRetries is 0", async () => {
+    expect.assertions(1);
+    function* generateCalls() {
+      yield Promise.reject("failure");
+      yield Promise.resolve("success");
+    }
+    const succeedAfterOneFailure = spy(returnsNext(generateCalls()));
+    const retryPromise = retry(succeedAfterOneFailure, {
+      maxRetries: 0,
+      retryDelay: 5,
+    });
+    assertSpyCalls(succeedAfterOneFailure, 1);
+    try {
+      await retryPromise;
+    } catch (e) {
+      expect(e).toBe("failure");
+    }
+    assertSpyCalls(succeedAfterOneFailure, 1);
   });
   it("will call and await an onBeforeRetry callback option", async () => {
     using time = new FakeTime();
