@@ -1,18 +1,32 @@
-# Deno Retry Async
+# Retry Async
 
-A utility for retrying asynchronous or synchronous operations with customizable options such as retry limits, delays, exponential backoff, and cancellation.
+A tiny utility for retrying asynchronous or synchronous operations with customizable options such as retry limits, delays, exponential backoff, and cancellation.
 
 ## Installation
 
-Add this module to your Deno project by importing it:
+Add this module to your deno project:
 
-```typescript
-import { retry } from "@deleteme/retry-async";
+```bash
+deno add @deleteme/retry-async
+```
+
+Add this module to your Node.js project using npm or yarn:
+
+```bash
+npx jsr add @deleteme/retry-async
+```
+
+```bash
+yarn dlx jsr add @deleteme/retry-async
 ```
 
 ## API
 
 ### `retry`
+
+```typescript
+import { retry } from "@deleteme/retry-async";
+```
 
 Retries a given operation until it succeeds, reaches the maximum number of retries, or is aborted.
 
@@ -145,6 +159,17 @@ try {
   console.error("Operation timed out:", error);
 }
 ```
+
+### `delay`
+
+Resolves after a specified number of milliseconds. Supports an abort signal to cancel.
+
+```typescript
+import { delay } from "@deleteme/retry-async";
+
+await delay(1000, { abortSignal }); // Wait for 1 second
+```
+
 
 ## License
 
