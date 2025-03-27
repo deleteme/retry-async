@@ -81,8 +81,8 @@ async function innerRetry(operation: Operation, options?: RetryOptions) {
       return value;
     } catch (rejection) {
       if (options?.abortSignal?.aborted) throw options.abortSignal.reason;
-      if (atLimit()) throw rejection;
       retries += 1;
+      if (atLimit()) throw rejection;
       const delayMs = calculateDelayMs(retries, retryDelay, decay);
       await delay(delayMs, { abortSignal: options?.abortSignal });
       if (options?.onBeforeRetry) {

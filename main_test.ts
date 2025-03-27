@@ -75,7 +75,30 @@ describe("retry() unhappy path", () => {
     expect(result).toBe("success");
     assertSpyCalls(succeedAfterOneFailure, 2);
   });
+  it("will not call onBeforeRetry more than maxRetries", async () => {
+    function* generateCalls() {
+      yield Promise.reject("failure");
+      yield Promise.reject("failure");
+    }
+    const onBeforeRetry = spy(({ retries }: { retries: number }) => {
+      //console.log('onBeforeRetry, retries:', retries);
+    });
+    const failTwice = spy(returnsNext(generateCalls()));
+    const handleFailure = spy((v: any) => {
+      return v;
+    });
+    const getRetryPromise = () => retry(failTwice, {
+      onBeforeRetry,
+      maxRetries: 1,
+      retryDelay: 10,
+    }).catch(handleFailure);
+    await expect(getRetryPromise()).resolves.toBe("failure");
+    assertSpyCalls(failTwice, 2);
+    assertSpyCalls(handleFailure, 1);
+    assertSpyCalls(onBeforeRetry, 1);
+  });
   it("will call the operation every 1s, up to max number of retries until it rejects", async () => {
+    expect.assertions(1);
     using time = new FakeTime();
     function* generateCalls() {
       while (true) {
@@ -83,26 +106,31 @@ describe("retry() unhappy path", () => {
       }
     }
     const alwaysFail = spy(returnsNext(generateCalls()));
-    const retryPromise = retry(alwaysFail, { maxRetries: 2 });
-    assertSpyCalls(alwaysFail, 1);
-    await time.tickAsync(999); // 999ms later
-    assertSpyCalls(alwaysFail, 1);
+    try {
+      const retryPromise = retry(alwaysFail, { maxRetries: 2 });
+      assertSpyCalls(alwaysFail, 1);
+      await time.tickAsync(999); // 999ms later
+      assertSpyCalls(alwaysFail, 1);
 
-    await time.tickAsync(1); // 1s later, 1st retry
-    assertSpyCalls(alwaysFail, 2);
+      await time.tickAsync(1); // 1s later, 1st retry
+      assertSpyCalls(alwaysFail, 2);
 
-    await time.tickAsync(999); // 999ms later
-    assertSpyCalls(alwaysFail, 2);
+      await time.tickAsync(999); // 999ms later
+      assertSpyCalls(alwaysFail, 2);
 
-    await time.tickAsync(1); // 1s later, 2nd and final retry
-    assertSpyCalls(alwaysFail, 3);
+      await time.tickAsync(1); // 1s later, 2nd and final retry
+      assertSpyCalls(alwaysFail, 3);
 
-    await time.runAllAsync();
+      await time.runAllAsync();
 
-    expect(retryPromise).resolves.toBe("failure");
+      await retryPromise;
+    } catch (e) {
+      expect(e).toBe("failure");
+    }
     assertSpyCalls(alwaysFail, 3);
   });
   it('will call the operation every "retryDelay" ms, up to max number of retries until it rejects', async () => {
+    expect.assertions(1);
     using time = new FakeTime();
     function* generateCalls() {
       while (true) {
@@ -125,11 +153,16 @@ describe("retry() unhappy path", () => {
     assertSpyCalls(alwaysFail, 3);
 
     await time.runAllAsync();
+    try {
+      await retryPromise;
+    } catch (e) {
+      expect(e).toBe("failure");
+    }
 
-    expect(retryPromise).resolves.toBe("failure");
     assertSpyCalls(alwaysFail, 3);
   });
   it("will call the operation at an decreasing frequency (decay), up to max number of retries until it rejects", async () => {
+    expect.assertions(1);
     using time = new FakeTime();
     function* generateCalls() {
       while (true) {
@@ -141,7 +174,6 @@ describe("retry() unhappy path", () => {
     assertSpyCalls(alwaysFail, 1);
 
     // expected delays: 1s, 2s, 4s
-
     await time.tickAsync(999); // 999ms later
     assertSpyCalls(alwaysFail, 1);
 
@@ -160,9 +192,12 @@ describe("retry() unhappy path", () => {
     await time.tickAsync(1); // 4s later, 3rd and final retry
     assertSpyCalls(alwaysFail, 4);
 
-    await time.runAllAsync();
-
-    expect(retryPromise).resolves.toBe("failure");
+    try {
+      await time.runAllAsync();
+      await retryPromise;
+    } catch (e) {
+      expect(e).toBe("failure");
+    }
     assertSpyCalls(alwaysFail, 4);
   });
 });
