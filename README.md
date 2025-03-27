@@ -21,7 +21,7 @@ Retries a given operation until it succeeds, reaches the maximum number of retri
 ```typescript
 function retry<T>(
   operation: Operation,
-  options?: RetryOptions & { timeout?: number },
+  options?: RetryOptions,
 ): Promise<T>;
 ```
 
@@ -110,11 +110,11 @@ const controller = new AbortController();
 setTimeout(() => controller.abort(), 5000); // Abort after 5 seconds
 
 try {
-  const result = await retry(async () => {
+  const result = await retry(async ({ abortSignal }) => {
     const response = await fetch("https://example.com/api", {
       // The abort signal is also passed to this operation function.
       // Ensure the signal is sent to fetch so that it may also abort the request.
-      signal: controller.signal,
+      signal: abortSignal,
     });
     if (!response.ok) throw new Error("Request failed");
     return response.json();

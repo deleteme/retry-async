@@ -26,6 +26,12 @@ interface DelayOptions {
   abortSignal?: AbortSignal;
 }
 
+/**
+  * Wait for a given amount of time.
+  * @param ms - The time to wait before resolving the promise in milliseconds.
+  * @param options - An optional object with an abortSignal property to support cancellation.
+  * @returns A promise that resolves after the given time in milliseconds.
+  */
 export function delay(ms: number, options?: DelayOptions): Promise<void> {
   return new Promise((resolve, reject) => {
     let timeout: ReturnType<typeof setTimeout>;
@@ -94,7 +100,7 @@ async function innerRetry(operation: Operation, options?: RetryOptions) {
 
 function* generatePromises(
   operation: Operation,
-  options?: RetryOptions & { timeout?: number },
+  options?: RetryOptions,
 ) {
   yield innerRetry(operation, options);
 
@@ -108,9 +114,15 @@ function* generatePromises(
   }
 }
 
+/**
+  * Retry an operation until it succeeds or the maximum number of retries is reached.
+  * @param operation - The operation function to retry.
+  * @param options - An optional object to configure retrying behavior.
+  * @returns A promise that resolves when the operation succeeds.
+  */
 export function retry<T>(
   operation: Operation,
-  options?: RetryOptions & { timeout?: number },
+  options?: RetryOptions,
 ): Promise<T> {
   return Promise.race(generatePromises(operation, options));
 }
