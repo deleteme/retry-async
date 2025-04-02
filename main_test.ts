@@ -51,7 +51,7 @@ describe("retry() unhappy path", () => {
       const result = await retryPromise;
       expect(result).toBe("success");
     } catch (error) {
-      throw 'this should not happen';
+      throw "this should not happen";
     }
     assertSpyCalls(succeedAfterOneFailure, 2);
   });
@@ -111,11 +111,12 @@ describe("retry() unhappy path", () => {
     const handleFailure = spy((v: any) => {
       return v;
     });
-    const getRetryPromise = () => retry(failTwice, {
-      onBeforeRetry,
-      maxRetries: 1,
-      retryDelay: 10,
-    }).catch(handleFailure);
+    const getRetryPromise = () =>
+      retry(failTwice, {
+        onBeforeRetry,
+        maxRetries: 1,
+        retryDelay: 10,
+      }).catch(handleFailure);
     await expect(getRetryPromise()).resolves.toBe("failure");
     assertSpyCalls(failTwice, 2);
     assertSpyCalls(handleFailure, 1);
@@ -185,44 +186,109 @@ describe("retry() unhappy path", () => {
 
     assertSpyCalls(alwaysFail, 3);
   });
-  it("will call the operation at an decreasing frequency (decay), up to max number of retries until it rejects", async () => {
-    expect.assertions(1);
-    using time = new FakeTime();
-    function* generateCalls() {
-      while (true) {
-        yield Promise.reject("failure");
+  describe("decay option as number", () => {
+    it("will call the operation at an decreasing frequency (decay), up to max number of retries until it rejects", async () => {
+      expect.assertions(1);
+      using time = new FakeTime();
+      function* generateCalls() {
+        while (true) {
+          yield Promise.reject("failure");
+        }
       }
-    }
-    const alwaysFail = spy(returnsNext(generateCalls()));
-    const retryPromise = retry(alwaysFail, { maxRetries: 3, decay: 2 });
-    assertSpyCalls(alwaysFail, 1);
+      const alwaysFail = spy(returnsNext(generateCalls()));
+      const retryPromise = retry(alwaysFail, { maxRetries: 3, decay: 2 });
+      assertSpyCalls(alwaysFail, 1);
 
-    // expected delays: 1s, 2s, 4s
-    await time.tickAsync(999); // 999ms later
-    assertSpyCalls(alwaysFail, 1);
+      // expected delays: 1s, 2s, 4s
+      await time.tickAsync(999); // 999ms later
+      assertSpyCalls(alwaysFail, 1);
 
-    await time.tickAsync(1); // 1s later, 1st retry
-    assertSpyCalls(alwaysFail, 2);
+      await time.tickAsync(1); // 1s later, 1st retry
+      assertSpyCalls(alwaysFail, 2);
 
-    await time.tickAsync(1999); // 1999ms later
-    assertSpyCalls(alwaysFail, 2);
+      await time.tickAsync(1999); // 1999ms later
+      assertSpyCalls(alwaysFail, 2);
 
-    await time.tickAsync(1); // 2s later, 2nd retry
-    assertSpyCalls(alwaysFail, 3);
+      await time.tickAsync(1); // 2s later, 2nd retry
+      assertSpyCalls(alwaysFail, 3);
 
-    await time.tickAsync(3999); // 3999ms later
-    assertSpyCalls(alwaysFail, 3);
+      await time.tickAsync(3999); // 3999ms later
+      assertSpyCalls(alwaysFail, 3);
 
-    await time.tickAsync(1); // 4s later, 3rd and final retry
-    assertSpyCalls(alwaysFail, 4);
+      await time.tickAsync(1); // 4s later, 3rd and final retry
+      assertSpyCalls(alwaysFail, 4);
 
-    try {
-      await time.runAllAsync();
-      await retryPromise;
-    } catch (e) {
-      expect(e).toBe("failure");
-    }
-    assertSpyCalls(alwaysFail, 4);
+      try {
+        await time.runAllAsync();
+        await retryPromise;
+      } catch (e) {
+        expect(e).toBe("failure");
+      }
+      assertSpyCalls(alwaysFail, 4);
+    });
+  });
+  describe.only("decay option as function", () => {
+    it("will call the operation at an interval returned by a decay function, up to max number of retries until it rejects", async () => {
+      expect.assertions(1);
+      using time = new FakeTime();
+      function* generateCalls() {
+        while (true) {
+          yield Promise.reject("failure");
+        }
+      }
+      const alwaysFail = spy(returnsNext(generateCalls()));
+      function* generateDecay() {
+        // 1st call
+        yield 50; // wait
+        // 1st retry
+        yield 1000; // wait
+        // 2nd retry
+        yield 10000; // wait
+        // 3rd retry
+        throw new Error("no more decay values");
+      }
+      const getDecay = spy(returnsNext(generateDecay()));
+      const retryPromise = retry(alwaysFail, {
+        maxRetries: 3,
+        decay: getDecay,
+      });
+      assertSpyCalls(alwaysFail, 1);
+      assertSpyCalls(getDecay, 0);
+
+      // expected delays: 50, 1000, 10000
+      await time.tickAsync(1); // 1ms later
+      assertSpyCalls(alwaysFail, 1);
+      // getDecay is called after the first attempt
+      assertSpyCalls(getDecay, 1);
+
+      await time.tickAsync(49); // 50ms later, 1st retry
+      assertSpyCalls(alwaysFail, 2);
+
+      await time.tickAsync(1); // 51ms later
+      assertSpyCalls(getDecay, 2);
+      assertSpyCalls(alwaysFail, 2);
+
+      await time.tickAsync(999); // 1050ms later, 2nd retry
+      assertSpyCalls(alwaysFail, 3);
+      assertSpyCalls(getDecay, 2);
+
+      await time.tickAsync(1); // 1051ms later
+      assertSpyCalls(alwaysFail, 3);
+      assertSpyCalls(getDecay, 3);
+
+      await time.tickAsync(9999); // 11050ms later, 3rd and final retry
+      assertSpyCalls(alwaysFail, 4);
+      assertSpyCalls(getDecay, 3);
+
+      try {
+        await time.runAllAsync();
+        await retryPromise;
+      } catch (e) {
+        expect(e).toBe("failure");
+      }
+      assertSpyCalls(alwaysFail, 4);
+      assertSpyCalls(getDecay, 3);
+    });
   });
 });
 

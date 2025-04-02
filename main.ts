@@ -10,7 +10,9 @@ interface RetryOptions {
   retryDelay?: number; // Delay between retries in milliseconds (default: 1000)
   decay?: number | DecayFunction; // Exponential backoff factor or custom decay function
   abortSignal?: AbortSignal; // Signal to cancel the retry process
-  onBeforeRetry?: (onBeforeRetryArg: { retries: number; rejection: any }) => Promise<void> | void; // Callback invoked after each retry
+  onBeforeRetry?: (
+    onBeforeRetryArg: { retries: number; rejection: any },
+  ) => Promise<void> | void; // Callback invoked after each retry
   timeout?: number; // Maximum time in milliseconds before the operation times out
 }
 
@@ -27,11 +29,11 @@ interface DelayOptions {
 }
 
 /**
-  * Wait for a given amount of time.
-  * @param ms - The time to wait before resolving the promise in milliseconds.
-  * @param options - An optional object with an abortSignal property to support cancellation.
-  * @returns A promise that resolves after the given time in milliseconds.
-  */
+ * Wait for a given amount of time.
+ * @param ms - The time to wait before resolving the promise in milliseconds.
+ * @param options - An optional object with an abortSignal property to support cancellation.
+ * @returns A promise that resolves after the given time in milliseconds.
+ */
 export function delay(ms: number, options?: DelayOptions): Promise<void> {
   return new Promise((resolve, reject) => {
     let timeout: ReturnType<typeof setTimeout>;
@@ -115,11 +117,11 @@ function* generatePromises(
 }
 
 /**
-  * Retry an operation until it succeeds or the maximum number of retries is reached.
-  * @param operation - The operation function to retry.
-  * @param options - An optional object to configure retrying behavior.
-  * @returns A promise that resolves when the operation succeeds.
-  */
+ * Retry an operation until it succeeds or the maximum number of retries is reached.
+ * @param operation - The operation function to retry.
+ * @param options - An optional object to configure retrying behavior.
+ * @returns A promise that resolves when the operation succeeds.
+ */
 export function retry<T>(
   operation: Operation,
   options?: RetryOptions,

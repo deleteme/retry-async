@@ -1,6 +1,8 @@
 # Retry Async
 
-A tiny utility for retrying asynchronous or synchronous operations with customizable options such as retry limits, delays, exponential backoff, and cancellation.
+A tiny utility for retrying asynchronous or synchronous operations with
+customizable options such as retry limits, delays, exponential backoff, and
+cancellation.
 
 ## Installation
 
@@ -28,7 +30,8 @@ yarn dlx jsr add @deleteme/retry-async
 import { retry } from "@deleteme/retry-async";
 ```
 
-Retries a given operation until it succeeds, reaches the maximum number of retries, or is aborted.
+Retries a given operation until it succeeds, reaches the maximum number of
+retries, or is aborted.
 
 #### Signature
 
@@ -41,39 +44,50 @@ function retry<T>(
 
 #### Parameters
 
-- **`operation`**:  
-  A function to be retried. It can be either synchronous or asynchronous.  
+- **`operation`**:\
+  A function to be retried. It can be either synchronous or asynchronous.
   ```typescript
-  type Operation = (options?: { abortSignal?: AbortSignal }) => any | Promise<any>;
+  type Operation = (
+    options?: { abortSignal?: AbortSignal },
+  ) => any | Promise<any>;
   ```
 
-- **`options`** *(optional)*:  
-  An object to configure the retry behavior.  
+- **`options`** _(optional)_:\
+  An object to configure the retry behavior.
   ```typescript
   interface RetryOptions {
     maxRetries?: number; // Maximum number of retries (default: 3)
     retryDelay?: number; // Delay between retries in milliseconds (default: 1000)
     decay?: number | DecayFunction; // Exponential backoff factor or custom decay function
     abortSignal?: AbortSignal; // Signal to cancel the retry process
-    onBeforeRetry?: (onBeforeRetryArg: { retries: number; rejection: any }) => Promise<void> | void; // Callback invoked after each retry
+    onBeforeRetry?: (
+      onBeforeRetryArg: { retries: number; rejection: any },
+    ) => Promise<void> | void; // Callback invoked after each retry
     timeout?: number; // Maximum time in milliseconds before the operation times out
   }
   ```
 
 #### Return Value
 
-A `Promise` that resolves with the result of the operation or rejects with the last error encountered.
+A `Promise` that resolves with the result of the operation or rejects with the
+last error encountered.
 
 #### Behavior
 
-1. The `operation` is called repeatedly until it resolves successfully or the retry limit is reached.
-2. If `retryDelay` is provided, the function waits for the specified delay between retries.
+1. The `operation` is called repeatedly until it resolves successfully or the
+   retry limit is reached.
+2. If `retryDelay` is provided, the function waits for the specified delay
+   between retries.
 3. If `decay` is provided:
    - If it's a number greater than 1, the delay increases exponentially.
-   - If it's a function, it calculates the delay based on the number of retries and the initial delay.
-4. If `abortSignal` is provided and aborted, the retry process is canceled immediately.
-5. If `timeout` is provided, the retry process will reject with a `TimeoutError` if the total time exceeds the specified duration.
-6. The `onBeforeRetry` callback is invoked after each failed attempt, providing details about the retry.
+   - If it's a function, it calculates the delay based on the number of retries
+     and the initial delay.
+4. If `abortSignal` is provided and aborted, the retry process is canceled
+   immediately.
+5. If `timeout` is provided, the retry process will reject with a `TimeoutError`
+   if the total time exceeds the specified duration.
+6. The `onBeforeRetry` callback is invoked after each failed attempt, providing
+   details about the retry.
 
 #### Examples
 
@@ -162,14 +176,14 @@ try {
 
 ### `delay`
 
-Resolves after a specified number of milliseconds. Supports an abort signal to cancel.
+Resolves after a specified number of milliseconds. Supports an abort signal to
+cancel.
 
 ```typescript
 import { delay } from "@deleteme/retry-async";
 
 await delay(1000, { abortSignal }); // Wait for 1 second
 ```
-
 
 ## License
 
